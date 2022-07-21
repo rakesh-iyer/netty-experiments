@@ -1,5 +1,7 @@
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -9,6 +11,7 @@ import java.security.SecureRandom;
 
 
 public class NettyChannelDecryptionInboundHandler extends NettyChannelInboundHandler {
+    static Logger logger = LogManager.getLogger(NettyChannelDecryptionInboundHandler.class.getName());
     String algorithm = "AES";
     SecretKey key;
 
@@ -17,9 +20,11 @@ public class NettyChannelDecryptionInboundHandler extends NettyChannelInboundHan
     }
 
     byte[] decryptMessage(ByteBuf byteBuf) throws Exception {
-        int length = byteBuf.readableBytes();
+        int length = byteBuf.readInt();
         byte[] messageBytes = new byte[length];
         byteBuf.readBytes(messageBytes);
+
+        logger.info("Trying to decrypt " + length + " bytes");
 
         Cipher cipher = Cipher.getInstance(algorithm);
         cipher.init(Cipher.DECRYPT_MODE, key);
@@ -29,8 +34,9 @@ public class NettyChannelDecryptionInboundHandler extends NettyChannelInboundHan
     }
 
     public void channelRead(ChannelHandlerContext channelHandlerContext, Object object) throws Exception {
-        System.out.println("NettyChannelDecryptionInboundHandler::channelRead");
+        logger.debug("NettyChannelDecryptionInboundHandler::channelRead");
         byte[] decrypted = decryptMessage((ByteBuf) object);
+
         ByteBuf byteBuf = channelHandlerContext.alloc().buffer();
         byteBuf.writeInt(decrypted.length);
         byteBuf.writeBytes(decrypted);

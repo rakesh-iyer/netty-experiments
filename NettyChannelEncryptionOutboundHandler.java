@@ -2,6 +2,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.util.ReferenceCountUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -12,12 +15,12 @@ import java.io.ObjectInputStream;
 import java.security.SecureRandom;
 
 public class NettyChannelEncryptionOutboundHandler extends NettyChannelOutboundHandler {
+    static Logger logger = LogManager.getLogger(NettyChannelEncryptionOutboundHandler.class.getName());
     String algorithm = "AES";
     SecretKey key;
 
 
     NettyChannelEncryptionOutboundHandler() throws Exception {
-//        key = KeyGenerator.getInstance(algorithm).generateKey();
         key = KeyUtils.readSecretKey();
     }
 
@@ -29,20 +32,26 @@ public class NettyChannelEncryptionOutboundHandler extends NettyChannelOutboundH
         Cipher cipher = Cipher.getInstance(algorithm);
         cipher.init(Cipher.ENCRYPT_MODE, key);
         byte[] encrypted = cipher.doFinal(messageBytes);
+        logger.info("Encrypted message is " + encrypted.length + " bytes");
 
         return encrypted;
     }
 
     @Override
     public void write(ChannelHandlerContext channelHandlerContext, Object object, ChannelPromise channelPromise) throws Exception {
-        System.out.println("NettyChannelEncryptionOutboundHandler::write");
+        logger.debug("NettyChannelEncryptionOutboundHandler::write");
         byte[] encrypted = encryptMessage((ByteBuf) object);
+
         ByteBuf byteBuf = channelHandlerContext.alloc().buffer();
+        byteBuf.writeInt(encrypted.length);
         byteBuf.writeBytes(encrypted);
 
-        ChannelFuture writeAndFlushFuture = channelHandlerContext.writeAndFlush(byteBuf);
-        writeAndFlushFuture.get();
+        ChannelFuture writeAndFlushFuture = channelHandlerContext.writeAndFlush(byteBuf, channelPromise);
 
-        channelHandlerContext.write(object, channelPromise);
+        // this will slow down the progress. lets fix this.
+        writeAndFlushFuture.get();
+        ReferenceCountUtil.release(object);
+
+//        channelHandlerContext.write(object, channelPromise);
     }
 }
