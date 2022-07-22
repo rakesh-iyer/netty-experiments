@@ -19,16 +19,9 @@ public class NettyMessageDecoder extends ByteToMessageDecoder {
             return;
         }
 
-        // can we not avoid this dual copy. or can we do this more efficiently.
-        ByteBuf messageBuf = channelHandlerContext.alloc().buffer();
         // unnecessary but looks cleaner way to updating the read index.
         length = byteBuf.readInt();
         ByteBuf messageEncapsulatingByteBuf = byteBuf.readBytes(length);
-        messageBuf.writeInt(length);
-        messageBuf.writeBytes(messageEncapsulatingByteBuf);
-
-        list.add(messageBuf);
-        // need to learn how to do netty bytebuf management carefully and correctly.
-        messageEncapsulatingByteBuf.release();
+        list.add(messageEncapsulatingByteBuf);
     }
 }

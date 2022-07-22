@@ -21,10 +21,7 @@ public class NettyChannelDecryptionInboundHandler extends NettyChannelInboundHan
     }
 
     byte[] decryptMessage(ByteBuf byteBuf) throws Exception {
-        int length = byteBuf.readInt();
-        if (length < 0) {
-            length = length;
-        }
+        int length = byteBuf.readableBytes();
         byte[] messageBytes = new byte[length];
         byteBuf.readBytes(messageBytes);
 
