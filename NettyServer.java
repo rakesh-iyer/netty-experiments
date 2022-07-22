@@ -20,18 +20,27 @@ public class NettyServer {
     static Logger logger = LogManager.getLogger(NettyServer.class.getName());
     static int SERVER_PORT = 3333;
     static String SERVER_HOST = "localhost";
+    static boolean enableSecurity = true;
+    static long previousTime;
+    static double previousMetric;
 
     static class NettyServerAcceptChannelHandler extends NettyChannelHandler {
         @Override
         public void handlerAdded(ChannelHandlerContext channelHandlerContext) throws Exception {
             logger.info("NettyServerAcceptChannelHandler::handlerAdded");
-            channelHandlerContext.channel().pipeline().addLast(new NettyChannelDecryptionInboundHandler());
-            channelHandlerContext.channel().pipeline().addLast(new NettyChannelEncryptionOutboundHandler());
+            channelHandlerContext.channel().pipeline().addLast(new NettyMessageDecoder());
+            if (enableSecurity) {
+                channelHandlerContext.channel().pipeline().addLast(new NettyChannelDecryptionInboundHandler());
+                channelHandlerContext.channel().pipeline().addLast(new NettyChannelEncryptionOutboundHandler());
+            }
             channelHandlerContext.channel().pipeline().addLast(new NettyServerChannelProcessingInboundHandler());
         }
     }
 
     static class NettyServerChannelProcessingInboundHandler extends NettyChannelInboundHandler {
+        long channelRead;
+        static int LIMIT = 1000;
+
         ByteBuf serializeMessage(ChannelHandlerContext channelHandlerContext, byte[] byteArray) throws Exception {
             ByteBuf byteBuf = channelHandlerContext.alloc().buffer();
             byteBuf.writeInt(byteArray.length);
@@ -56,9 +65,24 @@ public class NettyServer {
             return new String(messageBytes);
         }
 
+        // we could have a map of metrics to rate.
+        void logMetrics(long currentMetric) {
+            long currentTime = System.currentTimeMillis();
+            // print and store metrics only every second.
+            if (currentTime - previousTime > 1000) {
+                double ratio = 1000/ ((double)currentTime - previousTime);
+                double rate = (currentMetric - previousMetric) * ratio;
+                previousTime = currentTime;
+                previousMetric = currentMetric;
+                logger.info("NettyServerChannelProcessingInboundHandler:: is receiving at rate of " + rate + " messages/s.");
+            }
+        }
+
         public void channelRead(ChannelHandlerContext channelHandlerContext, Object object) throws Exception {
             logger.debug("NettyServerChannelProcessingInboundHandler::channelRead");
             String message = deserializeMessage(channelHandlerContext, (ByteBuf) object);
+            channelRead++;
+            logMetrics(channelRead);
             logger.debug(message);
             ReferenceCountUtil.release(object);
         }

@@ -3,6 +3,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.GenericFutureListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -24,6 +25,21 @@ public class NettyChannelEncryptionOutboundHandler extends NettyChannelOutboundH
         key = KeyUtils.readSecretKey();
     }
 
+    static class NettyChannelEncryptionListener implements GenericFutureListener<ChannelFuture> {
+        ByteBuf byteBuf;
+
+        NettyChannelEncryptionListener(ByteBuf bb) {
+            byteBuf = bb;
+        }
+
+        @Override
+        public void operationComplete(ChannelFuture channelFuture) throws Exception {
+            if (!channelFuture.isSuccess()) {
+                channelFuture.channel().close();
+            }
+        }
+    }
+
     byte[] encryptMessage(ByteBuf byteBuf) throws Exception {
         int length = byteBuf.readInt();
         byte[] messageBytes = new byte[length];
@@ -32,7 +48,7 @@ public class NettyChannelEncryptionOutboundHandler extends NettyChannelOutboundH
         Cipher cipher = Cipher.getInstance(algorithm);
         cipher.init(Cipher.ENCRYPT_MODE, key);
         byte[] encrypted = cipher.doFinal(messageBytes);
-        logger.info("Encrypted message is " + encrypted.length + " bytes");
+        logger.debug("Encrypted message is " + encrypted.length + " bytes");
 
         return encrypted;
     }
@@ -49,9 +65,7 @@ public class NettyChannelEncryptionOutboundHandler extends NettyChannelOutboundH
         ChannelFuture writeAndFlushFuture = channelHandlerContext.writeAndFlush(byteBuf, channelPromise);
 
         // this will slow down the progress. lets fix this.
-        writeAndFlushFuture.get();
+        writeAndFlushFuture.addListener(new NettyChannelEncryptionListener(byteBuf));
         ReferenceCountUtil.release(object);
-
-//        channelHandlerContext.write(object, channelPromise);
     }
 }

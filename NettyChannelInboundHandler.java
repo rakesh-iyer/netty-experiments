@@ -4,9 +4,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class NettyChannelInboundHandler extends NettyChannelHandler implements ChannelInboundHandler {
-    int channelRead;
-    static int LIMIT = 1000;
-
     static Logger logger = LogManager.getLogger(NettyChannelInboundHandler.class.getName());
 
     public void channelRegistered(ChannelHandlerContext channelHandlerContext) throws Exception {
@@ -31,10 +28,6 @@ public class NettyChannelInboundHandler extends NettyChannelHandler implements C
 
     public void channelRead(ChannelHandlerContext channelHandlerContext, Object object) throws Exception {
         logger.debug("NettyChannelInboundHandler::channelRead");
-        channelRead++;
-        if (channelRead % LIMIT == 0) {
-            logger.info("NettyChannelInboundHandler::channelRead read " + channelRead + " messages");
-        }
         channelHandlerContext.fireChannelRead(object);
     }
 

@@ -6,11 +6,9 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.GenericFutureListener;
 
-import io.netty.util.concurrent.ImmediateEventExecutor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configurator;
+
 
 import java.nio.charset.StandardCharsets;
 
@@ -20,6 +18,7 @@ public class NettyClient {
     static int CLIENT_PORT = 1234;
     static String SERVER_HOST = "localhost";
     static String CLIENT_HOST = "localhost";
+    static boolean enableSecurity = true;
     static ChannelHandlerContext activeChannelHandlerContext;
 
     static class NettyClientChannelProcessingInboundHandler extends NettyChannelInboundHandler {
@@ -77,20 +76,25 @@ public class NettyClient {
         }
     }
 
+    static class NettyClientChannelInitializer extends ChannelInitializer<SocketChannel> {
+        @Override
+        protected void initChannel(SocketChannel socketChannel) throws Exception {
+            socketChannel.pipeline().addLast(new NettyMessageDecoder());
+            if (enableSecurity) {
+                socketChannel.pipeline().addLast(new NettyChannelDecryptionInboundHandler());
+                socketChannel.pipeline().addLast(new NettyChannelEncryptionOutboundHandler());
+            }
+            socketChannel.pipeline().addLast(new NettyClientChannelProcessingInboundHandler());
+        }
+    }
+
     public static void main(String args[]) throws InterruptedException {
         logger.info("Starting high throughput netty client.");
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.localAddress(CLIENT_HOST, CLIENT_PORT);
         bootstrap.group(new NioEventLoopGroup());
         bootstrap.channelFactory(new NettyClientChannelFactory());
-        bootstrap.handler(new ChannelInitializer<SocketChannel>() {
-            @Override
-            protected void initChannel(SocketChannel socketChannel) throws Exception {
-                socketChannel.pipeline().addLast(new NettyChannelDecryptionInboundHandler());
-                socketChannel.pipeline().addLast(new NettyChannelEncryptionOutboundHandler());
-                socketChannel.pipeline().addLast(new NettyClientChannelProcessingInboundHandler());
-            }
-        });
+        bootstrap.handler(new NettyClientChannelInitializer());
         ChannelFuture connectFuture = bootstrap.connect(SERVER_HOST, SERVER_PORT).sync();
         connectFuture.channel().closeFuture().sync();
     }

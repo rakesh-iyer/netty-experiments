@@ -1,5 +1,6 @@
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.ReferenceCountUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -21,10 +22,13 @@ public class NettyChannelDecryptionInboundHandler extends NettyChannelInboundHan
 
     byte[] decryptMessage(ByteBuf byteBuf) throws Exception {
         int length = byteBuf.readInt();
+        if (length < 0) {
+            length = length;
+        }
         byte[] messageBytes = new byte[length];
         byteBuf.readBytes(messageBytes);
 
-        logger.info("Trying to decrypt " + length + " bytes");
+        logger.debug("Trying to decrypt " + length + " bytes");
 
         Cipher cipher = Cipher.getInstance(algorithm);
         cipher.init(Cipher.DECRYPT_MODE, key);
@@ -42,5 +46,6 @@ public class NettyChannelDecryptionInboundHandler extends NettyChannelInboundHan
         byteBuf.writeBytes(decrypted);
 
         channelHandlerContext.fireChannelRead(byteBuf);
+        ReferenceCountUtil.release(object);
     }
 }
