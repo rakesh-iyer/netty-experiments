@@ -16,8 +16,12 @@ public class NettyChannelDecryptionInboundHandler extends NettyChannelInboundHan
     String algorithm = "AES";
     SecretKey key;
 
-    NettyChannelDecryptionInboundHandler() throws Exception {
-        key = KeyUtils.readSecretKey();
+    NettyChannelDecryptionInboundHandler() {
+        try {
+            key = KeyUtils.readSecretKey();
+        } catch (Exception e) {
+            key = null;
+        }
     }
 
     byte[] decryptMessage(ByteBuf byteBuf) throws Exception {

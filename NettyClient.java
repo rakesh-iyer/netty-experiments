@@ -91,7 +91,7 @@ public class NettyClient {
     public static void main(String args[]) throws InterruptedException {
         logger.info("Starting high throughput netty client.");
         Bootstrap bootstrap = new Bootstrap();
-        bootstrap.localAddress(CLIENT_HOST, CLIENT_PORT);
+//        bootstrap.localAddress(CLIENT_HOST, CLIENT_PORT);
         bootstrap.group(new NioEventLoopGroup());
         bootstrap.channelFactory(new NettyClientChannelFactory());
         bootstrap.handler(new NettyClientChannelInitializer());

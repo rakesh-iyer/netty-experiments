@@ -15,14 +15,18 @@ import javax.crypto.spec.IvParameterSpec;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class NettyServer {
     static Logger logger = LogManager.getLogger(NettyServer.class.getName());
     static int SERVER_PORT = 3333;
     static String SERVER_HOST = "localhost";
     static boolean enableSecurity = true;
-    static long previousTime;
-    static double previousMetric;
+    static AtomicLong savedPreviousTime = new AtomicLong();
+    static AtomicLong savedPreviousMetric = new AtomicLong();
+    static NettyChannelDecryptionInboundHandler nettyChannelDecryptionInboundHandler = new NettyChannelDecryptionInboundHandler();
+    static NettyChannelEncryptionOutboundHandler nettyChannelEncryptionOutboundHandler = new NettyChannelEncryptionOutboundHandler();
+    static NettyServerChannelProcessingInboundHandler nettyServerChannelProcessingInboundHandler = new NettyServerChannelProcessingInboundHandler();
 
     static class NettyServerAcceptChannelHandler extends NettyChannelHandler {
         @Override
@@ -30,16 +34,15 @@ public class NettyServer {
             logger.info("NettyServerAcceptChannelHandler::handlerAdded");
             channelHandlerContext.channel().pipeline().addLast(new NettyMessageDecoder());
             if (enableSecurity) {
-                channelHandlerContext.channel().pipeline().addLast(new NettyChannelDecryptionInboundHandler());
-                channelHandlerContext.channel().pipeline().addLast(new NettyChannelEncryptionOutboundHandler());
+                channelHandlerContext.channel().pipeline().addLast(nettyChannelDecryptionInboundHandler);
+                channelHandlerContext.channel().pipeline().addLast(nettyChannelEncryptionOutboundHandler);
             }
-            channelHandlerContext.channel().pipeline().addLast(new NettyServerChannelProcessingInboundHandler());
+            channelHandlerContext.channel().pipeline().addLast(nettyServerChannelProcessingInboundHandler);
         }
     }
 
     static class NettyServerChannelProcessingInboundHandler extends NettyChannelInboundHandler {
-        long channelRead;
-        static int LIMIT = 1000;
+        static AtomicLong channelRead = new AtomicLong();
 
         ByteBuf serializeMessage(ChannelHandlerContext channelHandlerContext, byte[] byteArray) throws Exception {
             ByteBuf byteBuf = channelHandlerContext.alloc().buffer();
@@ -68,12 +71,13 @@ public class NettyServer {
         // we could have a map of metrics to rate.
         void logMetrics(long currentMetric) {
             long currentTime = System.currentTimeMillis();
+            long previousTime = savedPreviousTime.get();
             // print and store metrics only every second.
             if (currentTime - previousTime > 1000) {
                 double ratio = 1000/ ((double)currentTime - previousTime);
-                double rate = (currentMetric - previousMetric) * ratio;
-                previousTime = currentTime;
-                previousMetric = currentMetric;
+                double rate = (currentMetric - savedPreviousMetric.get()) * ratio;
+                savedPreviousTime.set(currentTime);
+                savedPreviousMetric.set(currentMetric);
                 logger.info("NettyServerChannelProcessingInboundHandler:: is receiving at rate of " + rate + " messages/s.");
             }
         }
@@ -81,8 +85,7 @@ public class NettyServer {
         public void channelRead(ChannelHandlerContext channelHandlerContext, Object object) throws Exception {
             logger.debug("NettyServerChannelProcessingInboundHandler::channelRead");
             String message = deserializeMessage(channelHandlerContext, (ByteBuf) object);
-            channelRead++;
-            logMetrics(channelRead);
+            logMetrics(channelRead.incrementAndGet());
             logger.debug(message);
             ReferenceCountUtil.release(object);
         }

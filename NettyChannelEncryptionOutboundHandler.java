@@ -21,8 +21,12 @@ public class NettyChannelEncryptionOutboundHandler extends NettyChannelOutboundH
     SecretKey key;
 
 
-    NettyChannelEncryptionOutboundHandler() throws Exception {
-        key = KeyUtils.readSecretKey();
+    NettyChannelEncryptionOutboundHandler() {
+        try {
+            key = KeyUtils.readSecretKey();
+        } catch (Exception e) {
+            key = null;
+        }
     }
 
     static class NettyChannelEncryptionListener implements GenericFutureListener<ChannelFuture> {
