@@ -21,6 +21,7 @@ public class FileServer {
         int readBytes;
         do {
             // you can read as much is the capacity of the bytebuffer.
+            // if remaining is 0, you will always get 0 back, as EOF will not get a chance to be exercised.
             readBytes = fileChannel.read(byteBuffer);
             remainingBytes -= readBytes;
         } while (remainingBytes > 0);

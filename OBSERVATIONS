@@ -1,0 +1,10 @@
+
+A. Memory usage difference between file server and client is huge even for a single client. This implies file system buffering needs to be improved.
+
+B. High Direct Memory and Heap Sizes are important even if Phy Memory is lower than it.
+
+C. Do back of envelope calculations hold?
+About 17K requests per second * 28K file size = 450M .
+Yet the memory footprint is 11-12GB.
+
+Considering encryption creates a 2x effect, doesnt explain the 20 time gradual growth.

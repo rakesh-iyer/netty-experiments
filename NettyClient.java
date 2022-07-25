@@ -11,6 +11,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 
 
 public class NettyClient {
@@ -22,21 +24,25 @@ public class NettyClient {
     static boolean enableSecurity = true;
     static ChannelHandlerContext activeChannelHandlerContext;
     static NettyClientChannelProcessingInboundHandler.SendPacketListener sendPacketListener = new NettyClientChannelProcessingInboundHandler.SendPacketListener();
-    static String STANDARD_CLIENT_MESSAGE = "READ a.txt";
-
+    static List<String> fileNamesList = Arrays.asList("small.txt", "medium.txt", "large.txt");
+    static String READ_MESSAGE = "READ %s";
 
     static class NettyClientChannelProcessingInboundHandler extends NettyChannelInboundHandler {
         static class SendPacketListener implements GenericFutureListener<ChannelFuture> {
+            // start with index = 1, as index = 0 has already been taken care of.
+            int index = 1;
             @Override
             public void operationComplete(ChannelFuture channelFuture) throws Exception {
                 if (channelFuture.isSuccess()) {
                     MessageSender.sendMessage(activeChannelHandlerContext,
-                            STANDARD_CLIENT_MESSAGE.getBytes(StandardCharsets.UTF_8),
+                            String.format(READ_MESSAGE, fileNamesList.get(index)).getBytes(StandardCharsets.UTF_8),
                             sendPacketListener);
                 } else {
                     channelFuture.cause().printStackTrace();
                     channelFuture.channel().close();
                 }
+                // rotate request amongst the files.
+                index = (index + 1) % fileNamesList.size();
             }
         }
 
@@ -44,7 +50,7 @@ public class NettyClient {
             logger.debug("NettyClientChannelProcessingInboundHandler::channelActive");
             activeChannelHandlerContext = channelHandlerContext;
             MessageSender.sendMessage(activeChannelHandlerContext,
-                    STANDARD_CLIENT_MESSAGE.getBytes(StandardCharsets.UTF_8),
+                    String.format(READ_MESSAGE, fileNamesList.get(0)).getBytes(StandardCharsets.UTF_8),
                     sendPacketListener);
         }
 
