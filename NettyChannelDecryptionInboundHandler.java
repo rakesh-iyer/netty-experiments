@@ -41,12 +41,12 @@ public class NettyChannelDecryptionInboundHandler extends NettyChannelInboundHan
     public void channelRead(ChannelHandlerContext channelHandlerContext, Object object) throws Exception {
         logger.debug("NettyChannelDecryptionInboundHandler::channelRead");
         byte[] decrypted = decryptMessage((ByteBuf) object);
+        ReferenceCountUtil.release(object);
 
         ByteBuf byteBuf = channelHandlerContext.alloc().buffer();
         byteBuf.writeInt(decrypted.length);
         byteBuf.writeBytes(decrypted);
 
         channelHandlerContext.fireChannelRead(byteBuf);
-        ReferenceCountUtil.release(object);
     }
 }
