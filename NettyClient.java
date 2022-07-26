@@ -1,19 +1,10 @@
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.util.ReferenceCountUtil;
-import io.netty.util.concurrent.GenericFutureListener;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
-
 
 public class NettyClient {
     static Logger logger = LogManager.getLogger(NettyClient.class.getName());
@@ -22,44 +13,7 @@ public class NettyClient {
     static String SERVER_HOST = "localhost";
     static String CLIENT_HOST = "localhost";
     static boolean enableSecurity = true;
-    static ChannelHandlerContext activeChannelHandlerContext;
-    static NettyClientChannelProcessingInboundHandler.SendPacketListener sendPacketListener = new NettyClientChannelProcessingInboundHandler.SendPacketListener();
-    static List<String> fileNamesList = Arrays.asList("small.txt", "medium.txt", "large.txt");
-    static String READ_MESSAGE = "READ %s";
 
-    static class NettyClientChannelProcessingInboundHandler extends NettyChannelInboundHandler {
-        static class SendPacketListener implements GenericFutureListener<ChannelFuture> {
-            // start with index = 1, as index = 0 has already been taken care of.
-            int index = 1;
-            @Override
-            public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                if (channelFuture.isSuccess()) {
-                    MessageUtils.sendMessage(activeChannelHandlerContext,
-                            String.format(READ_MESSAGE, fileNamesList.get(index)).getBytes(StandardCharsets.UTF_8),
-                            sendPacketListener);
-                } else {
-                    channelFuture.cause().printStackTrace();
-                    channelFuture.channel().close();
-                }
-                // rotate request amongst the files.
-//                index = (index + 1) % fileNamesList.size();
-            }
-        }
-
-        public void channelActive(ChannelHandlerContext channelHandlerContext) throws Exception {
-            logger.debug("NettyClientChannelProcessingInboundHandler::channelActive");
-            activeChannelHandlerContext = channelHandlerContext;
-            MessageUtils.sendMessage(activeChannelHandlerContext,
-                    String.format(READ_MESSAGE, fileNamesList.get(0)).getBytes(StandardCharsets.UTF_8),
-                    sendPacketListener);
-        }
-
-        public void channelRead(ChannelHandlerContext channelHandlerContext, Object object) throws Exception {
-            logger.debug("NettyClientChannelInboundHandler::channelRead");
-            byte[] message = MessageUtils.deserializeMessage(channelHandlerContext, (ByteBuf) object);
-            ReferenceCountUtil.release(object);
-        }
-    }
 
     static class NettyClientChannelFactory implements ChannelFactory<Channel> {
         @Override
