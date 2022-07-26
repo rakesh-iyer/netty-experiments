@@ -6,7 +6,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 
 import java.nio.ByteBuffer;
 
-public class MessageSender {
+public class MessageUtils {
     static void sendMessage(ChannelHandlerContext channelHandlerContext,
                             byte[] message,
                             GenericFutureListener<ChannelFuture> listener) throws Exception {
@@ -23,6 +23,7 @@ public class MessageSender {
         writeAndFlushFuture.addListener(listener);
     }
 
+    // Allocate
     static ByteBuf prepareMessage(ByteBufAllocator byteBufAllocator, byte[] message) throws Exception {
         ByteBuf byteBuf = byteBufAllocator.buffer();
         byteBuf.writeInt(message.length);
@@ -31,6 +32,7 @@ public class MessageSender {
         return byteBuf;
     }
 
+    // Allocate
     static ByteBuf prepareMessage(ByteBufAllocator byteBufAllocator, ByteBuffer message) throws Exception {
         message.flip();
         ByteBuf byteBuf = byteBufAllocator.buffer();
@@ -38,5 +40,13 @@ public class MessageSender {
         byteBuf.writeBytes(message);
 
         return byteBuf;
+    }
+
+    static byte[] deserializeMessage(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf) {
+        int length = byteBuf.readInt();
+        byte[] messageBytes = new byte[length];
+        byteBuf.readBytes(messageBytes);
+
+        return messageBytes;
     }
 }

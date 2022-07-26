@@ -19,6 +19,7 @@ public class NettyChannelEncryptionOutboundHandler extends NettyChannelOutboundH
     static Logger logger = LogManager.getLogger(NettyChannelEncryptionOutboundHandler.class.getName());
     String algorithm = "AES";
     SecretKey key;
+    static NettyChannelEncryptionListener nettyChannelEncryptionListener = new NettyChannelEncryptionListener();
 
 
     NettyChannelEncryptionOutboundHandler() {
@@ -30,12 +31,6 @@ public class NettyChannelEncryptionOutboundHandler extends NettyChannelOutboundH
     }
 
     static class NettyChannelEncryptionListener implements GenericFutureListener<ChannelFuture> {
-        ByteBuf byteBuf;
-
-        NettyChannelEncryptionListener(ByteBuf bb) {
-            byteBuf = bb;
-        }
-
         @Override
         public void operationComplete(ChannelFuture channelFuture) throws Exception {
             if (!channelFuture.isSuccess()) {
@@ -44,6 +39,7 @@ public class NettyChannelEncryptionOutboundHandler extends NettyChannelOutboundH
         }
     }
 
+    // No netty allocations, only java allocs that should be auto collected.
     byte[] encryptMessage(ByteBuf byteBuf) throws Exception {
         int length = byteBuf.readInt();
         byte[] messageBytes = new byte[length];
@@ -57,19 +53,20 @@ public class NettyChannelEncryptionOutboundHandler extends NettyChannelOutboundH
         return encrypted;
     }
 
+    // Allocate + Free
     @Override
     public void write(ChannelHandlerContext channelHandlerContext, Object object, ChannelPromise channelPromise) throws Exception {
         logger.debug("NettyChannelEncryptionOutboundHandler::write");
         byte[] encrypted = encryptMessage((ByteBuf) object);
+        ReferenceCountUtil.release(object);
 
+        // this allocation will be freed by Netty
+        // https://netty.io/wiki/reference-counted-objects.html#outbound-messages
         ByteBuf byteBuf = channelHandlerContext.alloc().buffer();
         byteBuf.writeInt(encrypted.length);
         byteBuf.writeBytes(encrypted);
 
         ChannelFuture writeAndFlushFuture = channelHandlerContext.writeAndFlush(byteBuf, channelPromise);
-
-        // this will slow down the progress. lets fix this.
-        writeAndFlushFuture.addListener(new NettyChannelEncryptionListener(byteBuf));
-        ReferenceCountUtil.release(object);
+        writeAndFlushFuture.addListener(nettyChannelEncryptionListener);
     }
 }

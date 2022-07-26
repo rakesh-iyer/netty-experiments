@@ -38,11 +38,13 @@ public class NettyChannelDecryptionInboundHandler extends NettyChannelInboundHan
         return decrypted;
     }
 
+    // Allocate + Free
     public void channelRead(ChannelHandlerContext channelHandlerContext, Object object) throws Exception {
         logger.debug("NettyChannelDecryptionInboundHandler::channelRead");
         byte[] decrypted = decryptMessage((ByteBuf) object);
         ReferenceCountUtil.release(object);
 
+        // should be freed by reader layer.
         ByteBuf byteBuf = channelHandlerContext.alloc().buffer();
         byteBuf.writeInt(decrypted.length);
         byteBuf.writeBytes(decrypted);

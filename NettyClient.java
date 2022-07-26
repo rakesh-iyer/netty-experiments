@@ -34,7 +34,7 @@ public class NettyClient {
             @Override
             public void operationComplete(ChannelFuture channelFuture) throws Exception {
                 if (channelFuture.isSuccess()) {
-                    MessageSender.sendMessage(activeChannelHandlerContext,
+                    MessageUtils.sendMessage(activeChannelHandlerContext,
                             String.format(READ_MESSAGE, fileNamesList.get(index)).getBytes(StandardCharsets.UTF_8),
                             sendPacketListener);
                 } else {
@@ -42,31 +42,22 @@ public class NettyClient {
                     channelFuture.channel().close();
                 }
                 // rotate request amongst the files.
-                index = (index + 1) % fileNamesList.size();
+//                index = (index + 1) % fileNamesList.size();
             }
         }
 
         public void channelActive(ChannelHandlerContext channelHandlerContext) throws Exception {
             logger.debug("NettyClientChannelProcessingInboundHandler::channelActive");
             activeChannelHandlerContext = channelHandlerContext;
-            MessageSender.sendMessage(activeChannelHandlerContext,
+            MessageUtils.sendMessage(activeChannelHandlerContext,
                     String.format(READ_MESSAGE, fileNamesList.get(0)).getBytes(StandardCharsets.UTF_8),
                     sendPacketListener);
         }
 
-        String deserializeMessage(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf) {
-            int length = byteBuf.readInt();
-            byte[] messageBytes = new byte[length];
-            byteBuf.readBytes(messageBytes);
-
-            ReferenceCountUtil.release(byteBuf);
-            return new String(messageBytes);
-        }
-
         public void channelRead(ChannelHandlerContext channelHandlerContext, Object object) throws Exception {
             logger.debug("NettyClientChannelInboundHandler::channelRead");
-            String message = deserializeMessage(channelHandlerContext, (ByteBuf) object);
-            logger.debug(message);
+            byte[] message = MessageUtils.deserializeMessage(channelHandlerContext, (ByteBuf) object);
+            ReferenceCountUtil.release(object);
         }
     }
 

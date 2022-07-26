@@ -5,6 +5,7 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import java.util.List;
 
 public class NettyMessageDecoder extends ByteToMessageDecoder {
+    // Allocate
     @Override
     protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, List<Object> list) throws Exception {
         if (byteBuf.readableBytes() < Integer.BYTES) {
@@ -21,6 +22,7 @@ public class NettyMessageDecoder extends ByteToMessageDecoder {
 
         // unnecessary but looks cleaner way to updating the read index.
         length = byteBuf.readInt();
+        // Should be freed by reader layers.
         ByteBuf messageEncapsulatingByteBuf = byteBuf.readBytes(length);
         list.add(messageEncapsulatingByteBuf);
     }

@@ -50,6 +50,17 @@ public class NettyServer {
 
     static class NettyServerChannelProcessingInboundHandler extends NettyChannelInboundHandler {
         static AtomicLong channelRead = new AtomicLong();
+        static byte [] fileData = new byte[28000];
+
+        static class NettyFileReadMessage {
+            String messageType;
+            String fileName;
+
+            NettyFileReadMessage(String m, String f) {
+                messageType = m;
+                fileName = f;
+            }
+        }
 
         static class SendPacketListener implements GenericFutureListener<ChannelFuture> {
             @Override
@@ -63,6 +74,7 @@ public class NettyServer {
             }
         }
 
+        // Allocate
         ByteBuf serializeMessage(ChannelHandlerContext channelHandlerContext, byte[] byteArray) throws Exception {
             ByteBuf byteBuf = channelHandlerContext.alloc().buffer();
             byteBuf.writeInt(byteArray.length);
@@ -79,13 +91,7 @@ public class NettyServer {
             writeAndFlushFuture.get();
         }
 
-        String deserializeMessage(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf) {
-            int length = byteBuf.readInt();
-            byte[] messageBytes = new byte[length];
-            byteBuf.readBytes(messageBytes);
-
-            return new String(messageBytes);
-        }
+        // Allocate
 
         // we could have a map of metrics to rate.
         void logMetrics(long currentMetric) {
@@ -105,33 +111,39 @@ public class NettyServer {
             return messageType.equals(READ_MESSAGE);
         }
 
-        boolean isValidFileName(String fileName) {
-            Path path = Paths.get(fileName);
-            return Files.exists(path);
-        }
-
-        public void channelRead(ChannelHandlerContext channelHandlerContext, Object object) throws Exception {
-            logger.debug("NettyServerChannelProcessingInboundHandler::channelRead");
-            String message = deserializeMessage(channelHandlerContext, (ByteBuf) object);
-            logMetrics(channelRead.incrementAndGet());
-            String [] messageComponents = message.split(" ");
+        NettyFileReadMessage getNettyFileReadMessage(byte[] message) {
+            String [] messageComponents = new String(message).split(" ");
             if (messageComponents.length != 2) {
                 logger.info("Incorrect number of message components for " + message + ":" + messageComponents.length);
-                return;
+                return null;
             }
 
             // expect a message of the type READ filename, i.e. READ a.txt
-            if (isReadRequest(messageComponents[0]) && isValidFileName(messageComponents[1])) {
-                ByteBuffer fileData = FileServer.readFile(messageComponents[1]);
-                // send the data back to the client
-                MessageSender.sendMessage(channelHandlerContext, fileData, sendPacketListener);
-            } else if (!isReadRequest(messageComponents[0])) {
+            if (isReadRequest(messageComponents[0]) && FileUtils.isValidFileName(messageComponents[1])) {
+                return new NettyFileReadMessage(messageComponents[0], messageComponents[1]);
+            }  else if (!isReadRequest(messageComponents[0])) {
                 logger.info("This is not a read request");
             } else {
                 logger.info(messageComponents[1] + " does not exist.");
             }
 
+            return null;
+        }
+
+        // Free
+        public void channelRead(ChannelHandlerContext channelHandlerContext, Object object) throws Exception {
+            logger.debug("NettyServerChannelProcessingInboundHandler::channelRead");
+            byte[] message = MessageUtils.deserializeMessage(channelHandlerContext, (ByteBuf) object);
             ReferenceCountUtil.release(object);
+
+            logMetrics(channelRead.incrementAndGet());
+            NettyFileReadMessage nettyFileReadMessage = getNettyFileReadMessage(message);
+            // expect a message of the type READ filename, i.e. READ a.txt
+            if (nettyFileReadMessage != null) {
+                ByteBuffer fileData = FileUtils.readFile(nettyFileReadMessage.fileName);
+                // send the data back to the client
+                MessageUtils.sendMessage(channelHandlerContext, fileData, sendPacketListener);
+            }
         }
     }
 

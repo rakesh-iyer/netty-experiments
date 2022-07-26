@@ -6,7 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.*;
 
-public class FileServer {
+public class FileUtils {
     static ByteBuffer readFile(String fileName) throws Exception {
         Path filePath = Paths.get(fileName);
         FileChannel fileChannel = FileChannel.open(filePath, StandardOpenOption.READ);
@@ -28,5 +28,10 @@ public class FileServer {
 
         fileChannel.close();
         return byteBuffer;
+    }
+
+    static boolean isValidFileName(String fileName) {
+        Path path = Paths.get(fileName);
+        return Files.exists(path);
     }
 }
