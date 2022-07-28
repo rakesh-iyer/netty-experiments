@@ -4,12 +4,12 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.GenericFutureListener;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicLong;
 
 class NettyServerChannelProcessingInboundHandler extends NettyChannelInboundHandler {
     static AtomicLong channelRead = new AtomicLong();
-    static byte [] fileData = new byte[28000];
     static String READ_MESSAGE = "READ";
     static AtomicLong savedPreviousTime = new AtomicLong();
     static AtomicLong savedPreviousMetric = new AtomicLong();
@@ -48,7 +48,7 @@ class NettyServerChannelProcessingInboundHandler extends NettyChannelInboundHand
 
     public void channelActive(ChannelHandlerContext channelHandlerContext) throws Exception {
         logger.debug("NettyServerChannelProcessingInboundHandler::channelActive");
-        byte[] sendPacketBuf = "SEND_SERVER_PACKET".getBytes(StandardCharsets.UTF_8);
+        byte[] sendPacketBuf = "SERVER_HELLO_PACKET".getBytes(StandardCharsets.UTF_8);
         ByteBuf byteBuf = serializeMessage(channelHandlerContext, sendPacketBuf);
         ChannelFuture writeAndFlushFuture = channelHandlerContext.writeAndFlush(byteBuf);
         writeAndFlushFuture.get();
@@ -103,7 +103,7 @@ class NettyServerChannelProcessingInboundHandler extends NettyChannelInboundHand
         NettyFileReadMessage nettyFileReadMessage = getNettyFileReadMessage(message);
         // expect a message of the type READ filename, i.e. READ a.txt
         if (nettyFileReadMessage != null) {
-//                ByteBuffer fileData = FileUtils.readFile(nettyFileReadMessage.fileName);
+            ByteBuffer fileData = FileUtils.readFile(nettyFileReadMessage.fileName);
             // send the data back to the client
             MessageUtils.sendMessage(channelHandlerContext, fileData, sendPacketListener);
         }

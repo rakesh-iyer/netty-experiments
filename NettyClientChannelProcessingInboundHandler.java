@@ -28,7 +28,7 @@ class NettyClientChannelProcessingInboundHandler extends NettyChannelInboundHand
                 channelFuture.channel().close();
             }
             // rotate request amongst the files.
-//                index = (index + 1) % fileNamesList.size();
+            index = (index + 1) % fileNamesList.size();
         }
     }
 

@@ -4,6 +4,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 
 public class NettyServer {
@@ -44,6 +46,7 @@ public class NettyServer {
         serverBootstrap.group(new NioEventLoopGroup(), new NioEventLoopGroup());
         serverBootstrap.channelFactory(new NettyServerChannelFactory());
         serverBootstrap.childHandler(new NettyServerAcceptChannelHandler());
+//        serverBootstrap.childOption(ChannelOption.TCP_NODELAY, true);
         ChannelFuture bindFuture = serverBootstrap.bind().sync();
         bindFuture.channel().closeFuture().sync();
     }

@@ -8,3 +8,7 @@ About 17K requests per second * 28K file size = 450M .
 Yet the memory footprint is 11-12GB.
 
 Considering encryption creates a 2x effect, doesnt explain the 20 time gradual growth.
+
+D. The heap size seems to be increasing upto max in a step wise fashion. It does not seem to go down.
+CMS seems to have a better profile than G1. It seems to be turning over memory faster.
+This may be also because the G1 is not being tuned well.
